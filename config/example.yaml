@@ -1,0 +1,31 @@
+# patchwork example configuration
+port: 8080
+
+routes:
+  - method: GET
+    path: /health
+    status: 200
+    headers:
+      Content-Type: application/json
+    body: '{"status": "ok"}'
+
+  - method: GET
+    path: /users
+    status: 200
+    headers:
+      Content-Type: application/json
+    body: '[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]'
+
+  - method: POST
+    path: /users
+    status: 201
+    headers:
+      Content-Type: application/json
+    body: '{"id": 3, "name": "Charlie"}'
+
+  - method: GET
+    path: /not-found
+    status: 404
+    headers:
+      Content-Type: application/json
+    body: '{"error": "resource not found"}'
