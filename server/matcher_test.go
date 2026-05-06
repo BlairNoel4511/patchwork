@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -59,6 +60,14 @@ func TestMatchesRequest_QueryMatch(t *testing.T) {
 	}
 }
 
+func TestMatchesRequest_QueryMismatch(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/?env=staging", nil)
+	cond := MatchCondition{Query: map[string]string{"env": "prod"}}
+	if matchesRequest(r, cond) {
+		t.Error("expected query mismatch")
+	}
+}
+
 func TestMatchesRequest_BodyContains(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", nil)
 	r = r.WithContext(context.WithValue(r.Context(), bodyKey{}, `{"type":"ping"}`))
@@ -73,5 +82,19 @@ func TestMatchesRequest_BodyMissingContext(t *testing.T) {
 	cond := MatchCondition{Body: "ping"}
 	if matchesRequest(r, cond) {
 		t.Error("expected no match when body context missing")
+	}
+}
+
+func TestMakeMatchRequest_WithHeaderAndQuery(t *testing.T) {
+	r := makeMatchRequest(
+		map[string]string{"X-Role": "admin"},
+		map[string]string{"env": "prod"},
+		"",
+	)
+	if r.Header.Get("X-Role") != "admin" {
+		t.Errorf("expected header X-Role=admin, got %s", r.Header.Get("X-Role"))
+	}
+	if r.URL.Query().Get("env") != "prod" {
+		t.Errorf("expected query env=prod, got %s", r.URL.Query().Get("env"))
 	}
 }
