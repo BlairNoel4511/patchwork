@@ -1,31 +1,39 @@
-# patchwork example configuration
 port: 8080
 
 routes:
-  - method: GET
-    path: /health
+  - path: /health
+    method: GET
     status: 200
-    headers:
-      Content-Type: application/json
     body: '{"status": "ok"}'
+    headers:
+      Content-Type: application/json
 
-  - method: GET
-    path: /users
+  - path: /users
+    method: GET
     status: 200
-    headers:
-      Content-Type: application/json
     body: '[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]'
+    headers:
+      Content-Type: application/json
 
-  - method: POST
-    path: /users
+  - path: /users
+    method: POST
     status: 201
-    headers:
-      Content-Type: application/json
     body: '{"id": 3, "name": "Charlie"}'
-
-  - method: GET
-    path: /not-found
-    status: 404
     headers:
       Content-Type: application/json
-    body: '{"error": "resource not found"}'
+    delay_ms: 200
+
+  - path: /slow
+    method: GET
+    status: 200
+    body: '{"message": "this was slow"}'
+    headers:
+      Content-Type: application/json
+    delay_ms: 1500
+
+  - path: /error
+    method: GET
+    status: 500
+    body: '{"error": "internal server error"}'
+    headers:
+      Content-Type: application/json
