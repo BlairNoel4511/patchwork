@@ -1,39 +1,64 @@
 port: 8080
 
 routes:
-  - path: /health
+  - path: /hello
     method: GET
     status: 200
-    body: '{"status": "ok"}'
+    body: '{"message": "Hello, world!"}'
     headers:
       Content-Type: application/json
 
-  - path: /users
+  - path: /users/:id
     method: GET
     status: 200
-    body: '[{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}]'
+    body: '{"id": "{{.PathParam \"id\"}}", "name": "Test User"}'
     headers:
       Content-Type: application/json
 
-  - path: /users
-    method: POST
-    status: 201
-    body: '{"id": 3, "name": "Charlie"}'
+  - path: /search
+    method: GET
+    status: 200
+    body: '{"query": "{{.Query \"q\"}}"}'
     headers:
       Content-Type: application/json
-    delay_ms: 200
+
+  - path: /multi
+    method: GET
+    responses:
+      - status: 200
+        body: '{"attempt": 1}'
+      - status: 200
+        body: '{"attempt": 2}'
+      - status: 200
+        body: '{"attempt": 3}'
+
+  - path: /flaky
+    method: GET
+    status: 200
+    body: '{"ok": true}'
+    chaos:
+      error_rate: 0.3
+      status_code: 503
+      body: '{"error": "service temporarily unavailable"}'
 
   - path: /slow
     method: GET
     status: 200
-    body: '{"message": "this was slow"}'
-    headers:
-      Content-Type: application/json
-    delay_ms: 1500
+    body: '{"message": "finally!"}'
+    delay: 500ms
 
-  - path: /error
-    method: GET
-    status: 500
-    body: '{"error": "internal server error"}'
-    headers:
-      Content-Type: application/json
+  - path: /conditional
+    method: POST
+    conditions:
+      - match:
+          header:
+            X-Role: admin
+        status: 200
+        body: '{"access": "granted"}'
+      - match:
+          header:
+            X-Role: guest
+        status: 403
+        body: '{"access": "denied"}'
+    status: 401
+    body: '{"error": "unauthorized"}'
