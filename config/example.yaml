@@ -1,64 +1,80 @@
 port: 8080
 
 routes:
-  - path: /hello
+  # Basic JSON response
+  - path: /api/health
     method: GET
     status: 200
-    body: '{"message": "Hello, world!"}'
     headers:
       Content-Type: application/json
+    body: '{"status": "ok"}'
 
-  - path: /users/:id
+  # Response with delay simulation
+  - path: /api/slow
     method: GET
+    delay: 500ms
     status: 200
-    body: '{"id": "{{.PathParam \"id\"}}", "name": "Test User"}'
-    headers:
-      Content-Type: application/json
+    body: '{"message": "slow response"}'
 
-  - path: /search
+  # Multiple responses — sequential mode
+  - path: /api/counter
     method: GET
-    status: 200
-    body: '{"query": "{{.Query \"q\"}}"}'
-    headers:
-      Content-Type: application/json
-
-  - path: /multi
-    method: GET
+    response_mode: sequential
     responses:
       - status: 200
-        body: '{"attempt": 1}'
+        body: '{"count": 1}'
       - status: 200
-        body: '{"attempt": 2}'
+        body: '{"count": 2}'
       - status: 200
-        body: '{"attempt": 3}'
+        body: '{"count": 3}'
 
-  - path: /flaky
+  # Scenario-based responses
+  # Activate via: POST /_patchwork/scenario?key=/api/orders&scenario=error
+  - path: /api/orders
+    method: GET
+    response_mode: scenario
+    scenario_key: /api/orders
+    responses:
+      - scenario: ""
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{"orders": [{"id": 1}]}'
+      - scenario: "error"
+        status: 503
+        headers:
+          Content-Type: application/json
+        body: '{"error": "service unavailable"}'
+      - scenario: "empty"
+        status: 200
+        headers:
+          Content-Type: application/json
+        body: '{"orders": []}'
+
+  # Chaos — randomly fail 30% of the time
+  - path: /api/unstable
     method: GET
     status: 200
     body: '{"ok": true}'
     chaos:
       error_rate: 0.3
-      status_code: 503
-      body: '{"error": "service temporarily unavailable"}'
+      status: 502
+      body: '{"error": "chaos"}'
 
-  - path: /slow
+  # Template response using query params
+  - path: /api/greet
     method: GET
     status: 200
-    body: '{"message": "finally!"}'
-    delay: 500ms
+    body: '{"message": "Hello, {{queryParam "name"}}!"}'
 
-  - path: /conditional
-    method: POST
-    conditions:
-      - match:
+  # Conditional response based on request header
+  - path: /api/secure
+    method: GET
+    responses:
+      - condition:
           header:
-            X-Role: admin
+            Authorization: Bearer secret-token
         status: 200
-        body: '{"access": "granted"}'
-      - match:
-          header:
-            X-Role: guest
-        status: 403
-        body: '{"access": "denied"}'
-    status: 401
-    body: '{"error": "unauthorized"}'
+        body: '{"data": "secret"}'
+      - status: 401
+        body: '{"error": "unauthorized"}'
