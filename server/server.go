@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/user/patchwork/config"
@@ -12,36 +11,43 @@ import (
 type Server struct {
 	cfg    *config.Config
 	mux    *http.ServeMux
-	httpSrv *http.Server
+	server *http.Server
 }
 
-// New creates a new Server from the given config.
+// New creates a new Server from the provided config, registering all routes.
 func New(cfg *config.Config) *Server {
 	mux := http.NewServeMux()
-	s := &Server{
-		cfg: cfg,
-		mux: mux,
-		httpSrv: &http.Server{
-			Addr:    fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
-			Handler: mux,
-		},
+
+	for _, route := range cfg.Routes {
+		handler := NewRouteHandler(route)
+		mux.Handle(route.Path, handler)
 	}
-	s.registerRoutes()
-	return s
+
+	handler := Chain(
+		mux,
+		LoggingMiddleware,
+		CORSMiddleware,
+	)
+
+	httpServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", cfg.Port),
+		Handler: handler,
+	}
+
+	return &Server{
+		cfg:    cfg,
+		mux:    mux,
+		server: httpServer,
+	}
 }
 
-// registerRoutes registers all routes defined in the config.
-func (s *Server) registerRoutes() {
-	for _, route := range s.cfg.Routes {
-		r := route // capture loop variable
-		pattern := fmt.Sprintf("%s %s", r.Method, r.Path)
-		s.mux.HandleFunc(pattern, NewRouteHandler(r))
-		log.Printf("registered route: %s %s -> %d", r.Method, r.Path, r.Response.Status)
-	}
-}
-
-// Start begins listening for HTTP requests.
+// Start begins listening and serving HTTP requests.
 func (s *Server) Start() error {
-	log.Printf("patchwork listening on %s", s.httpSrv.Addr)
-	return s.httpSrv.ListenAndServe()
+	fmt.Printf("patchwork listening on :%d\n", s.cfg.Port)
+	return s.server.ListenAndServe()
+}
+
+// Handler returns the underlying http.Handler (useful for testing).
+func (s *Server) Handler() http.Handler {
+	return s.server.Handler
 }
