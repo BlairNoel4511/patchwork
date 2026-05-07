@@ -63,3 +63,14 @@ func renderJSONTemplate(body string, r *http.Request) (string, bool) {
 	var js json.RawMessage
 	return rendered, json.Unmarshal([]byte(rendered), &js) == nil
 }
+
+// isTemplate reports whether the given string contains any Go template
+// directives (i.e. {{ ... }} action blocks).
+func isTemplate(body string) bool {
+	for i := 0; i < len(body)-1; i++ {
+		if body[i] == '{' && body[i+1] == '{' {
+			return true
+		}
+	}
+	return false
+}
