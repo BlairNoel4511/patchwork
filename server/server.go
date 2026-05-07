@@ -7,47 +7,43 @@ import (
 	"github.com/user/patchwork/config"
 )
 
-// Server holds the HTTP server and its configuration.
-type Server struct {
-	cfg    *config.Config
-	mux    *http.ServeMux
-	server *http.Server
-}
-
-// New creates a new Server from the provided config, registering all routes.
-func New(cfg *config.Config) *Server {
+// New builds and returns an http.Handler from the provided config.
+func New(cfg *config.Config) http.Handler {
 	mux := http.NewServeMux()
+	store := NewScenarioStore()
+	log := NewRequestLog(cfg.Server.MaxLogEntries)
 
 	for _, route := range cfg.Routes {
-		handler := NewRouteHandler(route)
-		mux.Handle(route.Path, handler)
+		r := route // capture
+		var handler http.Handler
+		if len(r.Conditions) > 0 {
+			handler = NewConditionalHandler(r)
+		} else {
+			handler = NewRouteHandler(r)
+		}
+		if r.Scenario != "" {
+			handler = scenarioHandler(store, r, handler)
+		}
+		chain := Chain(
+			handler,
+			BodyCacheMiddleware,
+			RateLimitMiddleware(r),
+			DelayMiddleware(r),
+			ChaosMiddleware(r),
+			ProxyMiddleware(r),
+			WebhookMiddleware(r),
+			RequestLogMiddleware(log),
+			LoggingMiddleware,
+			CORSMiddleware,
+		)
+		mux.Handle(fmt.Sprintf("%s %s", r.Method, r.Path), chain)
 	}
 
-	handler := Chain(
-		mux,
-		LoggingMiddleware,
-		CORSMiddleware,
-	)
+	mux.Handle("GET /__patchwork/scenarios", ScenarioControlHandler(store))
+	mux.Handle("POST /__patchwork/scenarios", ScenarioControlHandler(store))
+	mux.Handle("DELETE /__patchwork/scenarios", ScenarioControlHandler(store))
+	mux.Handle("GET /__patchwork/requests", RequestLogHandler(log))
+	mux.Handle("DELETE /__patchwork/requests", RequestLogHandler(log))
 
-	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Port),
-		Handler: handler,
-	}
-
-	return &Server{
-		cfg:    cfg,
-		mux:    mux,
-		server: httpServer,
-	}
-}
-
-// Start begins listening and serving HTTP requests.
-func (s *Server) Start() error {
-	fmt.Printf("patchwork listening on :%d\n", s.cfg.Port)
-	return s.server.ListenAndServe()
-}
-
-// Handler returns the underlying http.Handler (useful for testing).
-func (s *Server) Handler() http.Handler {
-	return s.server.Handler
+	return mux
 }
