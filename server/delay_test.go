@@ -67,3 +67,19 @@ func TestDelayMiddleware_NegativeDelay(t *testing.T) {
 		t.Errorf("negative delay should not sleep, but took %v", elapsed)
 	}
 }
+
+func TestDelayMiddleware_PassesRequestThrough(t *testing.T) {
+	var capturedPath string
+	handler := DelayMiddleware(0)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/test-path", nil)
+	handler.ServeHTTP(rr, req)
+
+	if capturedPath != "/test-path" {
+		t.Errorf("expected request path to be passed through, got %q", capturedPath)
+	}
+}
