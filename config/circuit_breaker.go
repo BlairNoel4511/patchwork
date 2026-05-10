@@ -1,5 +1,7 @@
 package config
 
+import "errors"
+
 // CircuitBreakerConfig defines circuit breaker settings for a route.
 // When the upstream error rate exceeds the threshold, the circuit opens
 // and requests are rejected with the configured status code.
@@ -21,4 +23,19 @@ type CircuitBreakerConfig struct {
 
 	// Body is the response body returned when the circuit is open.
 	Body string `yaml:"body"`
+}
+
+// Validate checks that the CircuitBreakerConfig has valid field values.
+// It returns an error if any field is out of an acceptable range.
+func (c *CircuitBreakerConfig) Validate() error {
+	if c.Threshold < 0 {
+		return errors.New("circuit breaker threshold must be non-negative")
+	}
+	if c.OpenDuration < 0 {
+		return errors.New("circuit breaker open_duration_ms must be non-negative")
+	}
+	if c.StatusCode != 0 && (c.StatusCode < 100 || c.StatusCode > 599) {
+		return errors.New("circuit breaker status_code must be a valid HTTP status code (100-599)")
+	}
+	return nil
 }
