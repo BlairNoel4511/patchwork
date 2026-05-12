@@ -1,5 +1,7 @@
 package config
 
+import "strings"
+
 // CORSConfig defines cross-origin resource sharing settings for a route or globally.
 type CORSConfig struct {
 	AllowedOrigins   []string `yaml:"allowed_origins"`
@@ -26,14 +28,7 @@ func (c *CORSConfig) AllowedOriginsValue() string {
 			return "*"
 		}
 	}
-	result := ""
-	for i, o := range c.AllowedOrigins {
-		if i > 0 {
-			result += ", "
-		}
-		result += o
-	}
-	return result
+	return strings.Join(c.AllowedOrigins, ", ")
 }
 
 // AllowedMethodsValue returns the methods as a comma-separated string,
@@ -42,14 +37,7 @@ func (c *CORSConfig) AllowedMethodsValue() string {
 	if c == nil || len(c.AllowedMethods) == 0 {
 		return "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 	}
-	result := ""
-	for i, m := range c.AllowedMethods {
-		if i > 0 {
-			result += ", "
-		}
-		result += m
-	}
-	return result
+	return strings.Join(c.AllowedMethods, ", ")
 }
 
 // AllowedHeadersValue returns the headers as a comma-separated string,
@@ -58,12 +46,14 @@ func (c *CORSConfig) AllowedHeadersValue() string {
 	if c == nil || len(c.AllowedHeaders) == 0 {
 		return "Content-Type, Authorization"
 	}
-	result := ""
-	for i, h := range c.AllowedHeaders {
-		if i > 0 {
-			result += ", "
-		}
-		result += h
+	return strings.Join(c.AllowedHeaders, ", ")
+}
+
+// ExposedHeadersValue returns the exposed headers as a comma-separated string,
+// or an empty string when none are configured.
+func (c *CORSConfig) ExposedHeadersValue() string {
+	if c == nil || len(c.ExposedHeaders) == 0 {
+		return ""
 	}
-	return result
+	return strings.Join(c.ExposedHeaders, ", ")
 }
